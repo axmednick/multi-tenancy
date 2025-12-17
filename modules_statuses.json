@@ -1,0 +1,9 @@
+{
+    "Tenants": true,
+    "Users": true,
+    "Tasks": true,
+    "Reports": true,
+    "Notifications": true,
+    "Tenant": true,
+    "Central": true
+}
