@@ -5,11 +5,11 @@ namespace Modules\Reports\Console;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Mail;
-use Modules\Reports\Emails\AdminReportsMail;
+use Modules\Notifications\Emails\AdminReportsMail;
 use Modules\Reports\Service\ReportService;
 use Modules\Users\Entities\User;
-use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\InputArgument;
+use Symfony\Component\Console\Input\InputOption;
 
 class SendReportsToAdmin extends Command
 {

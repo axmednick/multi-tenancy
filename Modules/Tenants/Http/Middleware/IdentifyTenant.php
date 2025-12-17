@@ -10,7 +10,7 @@ class IdentifyTenant
 {
     public function handle($request, Closure $next)
     {
-        $host = $request->getHost(); // Məsələn: rustamov.etsn.carbuy.az
+        $host = $request->getHost();
         $centralDomains = config('tenancy.central_domains', []);
 
         if (in_array($host, $centralDomains)) {
@@ -20,7 +20,6 @@ class IdentifyTenant
         $subdomain = $host;
         foreach ($centralDomains as $central) {
             if (str_ends_with($host, '.' . $central)) {
-                // '.etsn.carbuy.az' hissəsini silirik
                 $subdomain = str_replace('.' . $central, '', $host);
                 break;
             }

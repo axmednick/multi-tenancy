@@ -1,14 +1,16 @@
 <?php
 
-namespace Modules\Reports\Emails;
+namespace Modules\Notifications\Emails;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Collection;
-use Modules\Reports\Entities\Report; // Report modelinizin namespace-i
-use Illuminate\Support\Facades\URL; // Link yaratmaq üçün
+use Modules\Reports\Entities\Report;
+
+// Report modelinizin namespace-i
+// Link yaratmaq üçün
 
 class AdminReportsMail extends Mailable implements ShouldQueue
 {
@@ -34,7 +36,7 @@ class AdminReportsMail extends Mailable implements ShouldQueue
     public function build()
     {
         return $this->subject("Hesabat: '{$this->tenantId}' üçün Yeni Admin Reportları")
-            ->view('reports::emails.reports_mail', [
+            ->view('notifications::emails.reports_mail', [
                 'reports' => $this->reports,
                 'tenantId' => $this->tenantId,
                 'reportCount' => $this->reports->count(),
