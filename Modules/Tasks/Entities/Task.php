@@ -5,6 +5,7 @@ namespace Modules\Tasks\Entities;
 use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\DB;
 use Modules\Users\Entities\User;
 
 class Task extends Model
@@ -27,4 +28,6 @@ class Task extends Model
     {
         return $this->hasMany(Comment::class);
     }
+
+
 }

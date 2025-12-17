@@ -2,27 +2,27 @@
 
 namespace Modules\Reports\Http\Controllers;
 
-use Illuminate\Contracts\Support\Renderable;
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Routing\Controller;
-use Modules\Reports\Service\ReportService;
+use Modules\Reports\Actions\GenerateReportAction;
 use Modules\Reports\Transformers\ReportResource;
 
 class ReportsController extends Controller
 {
-
-    public function __construct(protected ReportService $reportService)
+    /**
+     * @param Request $request
+     * @param GenerateReportAction $action
+     * @return ReportResource
+     */
+    public function generateReport(Request $request, GenerateReportAction $action): ReportResource
     {
-    }
+        $user = auth('sanctum')->user();
 
-    public function generateReport(Request $request)
-    {
-        $userId = auth('sanctum')->id();
-        $start  = $request->query('start_date');
-        $end    = $request->query('end_date');
-
-        $report = $this->reportService->generate($userId, $start, $end);
-
+        $report = $action->execute(
+            $user,
+            $request->query('start_date'),
+            $request->query('end_date')
+        );
 
         return ReportResource::make($report);
     }

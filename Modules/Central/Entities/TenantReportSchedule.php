@@ -11,6 +11,10 @@ class TenantReportSchedule extends Model
 
     protected $guarded = [];
 
+    protected $casts = [
+        'last_executed_at' => 'datetime',
+    ];
+
     public function needsExecution(): bool
     {
         if (!$this->last_executed_at) {

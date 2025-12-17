@@ -1,53 +1,50 @@
 <?php
-
 namespace Modules\Tasks\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Modules\Tasks\Entities\Task;
 use Modules\Tasks\Entities\Comment;
-use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Http\Resources\Json\ResourceCollection;
 use Modules\Tasks\Http\Requests\CommentRequest;
 use Modules\Tasks\Transformers\CommentResource;
+use Modules\Tasks\Repositories\CommentRepository;
+use Modules\Tasks\Actions\StoreCommentAction;
 
 class CommentController extends Controller
 {
     use AuthorizesRequests;
 
-    public function index(Task $task): ResourceCollection
+    public function __construct(
+        protected CommentRepository $repository
+    ) {}
+
+    public function index(Task $task): AnonymousResourceCollection
     {
-        $comments = $task->comments()->latest()->get();
+        $comments = $this->repository->getCommentsByTask($task);
+
         return CommentResource::collection($comments);
     }
 
-
-    public function store(CommentRequest $request, Task $task): JsonResource
+    public function store(CommentRequest $request, Task $task, StoreCommentAction $action): CommentResource
     {
-        $validated = $request->validated();
 
-        $comment = $task->comments()->create([
-            'user_id' => auth('sanctum')->id(),
-            'comment' => $validated['comment'],
-            'task_id' => $task->id,
-        ]);
+        $this->authorize('createComment', $task);
 
-        return  CommentResource::make($comment);
+        $comment = $action->execute($task, $request->validated());
+
+        return CommentResource::make($comment);
     }
 
     public function destroy(Task $task, Comment $comment): JsonResponse
     {
-        if ($comment->task_id !== $task->id) {
-            return response()->json(['message' => 'Comment not found for this task'], 404);
-        }
-
+        abort_if($comment->task_id !== $task->id, 404, 'Comment not found for this task');
 
         $this->authorize('delete', $comment);
 
-        $comment->delete();
+        $this->repository->delete($comment);
 
-        return response()->json(['message' => 'Comment deleted successfully']);
+        return response()->json(['message' => 'Comment deleted successfully'], 200);
     }
 }

@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\Tasks\Service;
+namespace Modules\Tasks\Services;
 
 use Illuminate\Support\Facades\Cache;
 

@@ -1,95 +1,74 @@
 <?php
-
 namespace Modules\Tasks\Http\Controllers;
 
-use Illuminate\Contracts\Support\Renderable;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\Cache;
 use Modules\Tasks\Entities\Task;
+use Modules\Tasks\Repositories\TaskRepository;
+use Modules\Tasks\Actions\UpdateTaskAction;
+use Modules\Tasks\Actions\StoreTaskAction;
 use Modules\Tasks\Http\Requests\CreateTaskRequest;
 use Modules\Tasks\Http\Requests\UpdateTaskRequest;
-use Modules\Tasks\Service\CacheService;
+use Modules\Tasks\Services\TaskService;
 use Modules\Tasks\Transformers\TaskResource;
 
 class TasksController extends Controller
 {
     use AuthorizesRequests;
 
-    public function __construct(protected CacheService $cacheService)
-    {
-    }
+    public function __construct(
+        protected TaskService $taskService,
+        protected TaskRepository $repository
+    ) {}
 
     public function index(): AnonymousResourceCollection
     {
         $this->authorize('viewAny', Task::class);
 
-        $user = auth('sanctum')->user();
-        $cacheKey = $this->cacheService->getTenantCacheKey("tasks_list_user_{$user->id}");
-
-        $tasks = Cache::remember($cacheKey, 60, function () use ($user) {
-            return Task::query()
-                ->when($user->can('tasks.view.own') && ! $user->can('tasks.view.any'), function ($q) use ($user) {
-                    $q->where('assigned_to', $user->id);
-                })
-                ->orderBy('due_date', 'desc')
-                ->get();
-        });
+        $tasks = $this->taskService->getCachedTasks(auth()->user());
 
         return TaskResource::collection($tasks);
     }
 
-
-
-    public function store(CreateTaskRequest $request)
+    public function store(CreateTaskRequest $request, StoreTaskAction $action): TaskResource
     {
         $this->authorize('create', Task::class);
 
-
-        $validated = $request->validated();
-        $task = Task::create($validated);
-        return new TaskResource($task);
-    }
-
-    public function show($id)
-    {
-        $task = Task::findOrFail($id);
-
-        $this->authorize('view', $task); // TaskPolicy-dəki view methodu çağırılır
+        $task = $action->execute($request->validated());
 
         return new TaskResource($task);
     }
 
-
-    public function update(UpdateTaskRequest $request, $id)
+    public function show(int $id): TaskResource
     {
-        $task = Task::findOrFail($id);
+        $task = $this->repository->findById($id);
+
+        $this->authorize('view', $task);
+
+        return new TaskResource($task);
+    }
+
+    public function update(UpdateTaskRequest $request, int $id, UpdateTaskAction $action): TaskResource
+    {
+        $task = $this->repository->findById($id);
 
         $this->authorize('update', $task);
 
-        $validated = $request->validated();
+        $updatedTask = $action->execute($task, $request->validated(), auth()->user());
 
-
-        if (! auth('sanctum')->user()->can('tasks.update.any')) {
-
-            $validated = $request->only('status');
-        }
-
-        $task->update($validated);
-
-        return new TaskResource($task);
+        return new TaskResource($updatedTask);
     }
 
-
-
-    public function destroy($id): JsonResponse
+    public function destroy(int $id): JsonResponse
     {
-        $task = Task::findOrFail($id);
+        $task = $this->repository->findById($id);
+
         $this->authorize('delete', $task);
-        $task->delete();
+
+        $this->repository->delete($task);
+
         return response()->json(null, 204);
     }
 }

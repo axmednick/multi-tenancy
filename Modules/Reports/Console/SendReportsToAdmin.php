@@ -1,119 +1,71 @@
 <?php
-
 namespace Modules\Reports\Console;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Mail;
 use Modules\Notifications\Emails\AdminReportsMail;
-use Modules\Reports\Service\ReportService;
+use Modules\Reports\Actions\GenerateBulkReportsAction;
 use Modules\Users\Entities\User;
-use Symfony\Component\Console\Input\InputArgument;
-use Symfony\Component\Console\Input\InputOption;
+use Exception;
 
 class SendReportsToAdmin extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
-    protected $signature = 'report:send-to-admins {tenant_id : The ID of the tenant to process reports for}';    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Command description.';
+    protected $signature = 'report:send-to-admins {tenant_id : The ID of the tenant to process reports for}';
+    protected $description = 'Generate weekly reports and send them via email to all administrators.';
 
-    /**
-     * Create a new command instance.
-     *
-     * @return void
-     */
-    public function __construct(protected ReportService $reportService)
-    {
+    public function __construct(
+        protected GenerateBulkReportsAction $bulkAction
+    ) {
         parent::__construct();
     }
 
     /**
-     * Execute the console command.
-     *
-     * @return mixed
+     * @return int
      */
-    public function handle()
+    public function handle(): int
     {
         $tenantId = $this->argument('tenant_id');
+
         try {
             tenancy()->initialize($tenantId);
 
-
-            $reports = $this->reportService->generate();
+            $reports = $this->bulkAction->execute();
 
             if ($reports->isEmpty()) {
-                $this->warn("No reports were generated for tenant {$tenantId} this week.");
-                tenancy()->end();
-                return Command::SUCCESS;
+                $this->warn("No reports were generated for tenant: {$tenantId}");
+                return self::SUCCESS;
             }
-
-            $this->info("Successfully generated {$reports->count()} reports.");
 
             $admins = User::role('admin')->get();
 
             if ($admins->isEmpty()) {
-                $this->warn("No 'admin' users found in tenant {$tenantId}. Reports generated but not sent.");
-                tenancy()->end();
-                return Command::SUCCESS;
+                $this->warn("No admin users found in tenant: {$tenantId}");
+                return self::SUCCESS;
             }
 
+            $this->processEmailSending($admins, $reports, $tenantId);
 
-            $this->sendReportsToAdmins($admins, $reports);
+            $this->info("Successfully processed {$reports->count()} reports for {$tenantId}.");
 
-            $this->info("Reports successfully sent to " . $admins->count() . " admin(s) in {$tenantId}.");
+            return self::SUCCESS;
 
-            tenancy()->end();
-
-        } catch (\Exception $e) {
-            $this->error("Error processing tenant {$tenantId}: " . $e->getMessage());
-
-
-            return Command::FAILURE;
+        } catch (Exception $e) {
+            $this->error("Critical error in tenant {$tenantId}: " . $e->getMessage());
+            return self::FAILURE;
+        } finally {
+            if (tenancy()->initialized) {
+                tenancy()->end();
+            }
         }
-
-        return Command::SUCCESS;
-
     }
 
-    protected function sendReportsToAdmins(Collection $admins, Collection $reports): void
+
+    protected function processEmailSending(Collection $admins, Collection $reports, string $tenantId): void
     {
         foreach ($admins as $admin) {
-            Mail::to($admin->email)
-                ->queue(new AdminReportsMail($reports, $this->argument('tenant_id')));
-
-            $this->line(" -> Sent mail to: {$admin->email}");
+            Mail::to($admin->email)->queue(new AdminReportsMail($reports, $tenantId));
+            $this->line(" -> Queued email for admin: {$admin->email}");
         }
-    }
-
-    /**
-     * Get the console command arguments.
-     *
-     * @return array
-     */
-    protected function getArguments()
-    {
-        return [
-            ['tenant_id', InputArgument::REQUIRED, 'The ID of the tenant to process.'],
-        ];
-    }
-
-    /**
-     * Get the console command options.
-     *
-     * @return array
-     */
-    protected function getOptions()
-    {
-        return [
-            ['example', null, InputOption::VALUE_OPTIONAL, 'An example option.', null],
-        ];
     }
 }

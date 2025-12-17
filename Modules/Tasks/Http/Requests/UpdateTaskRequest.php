@@ -20,6 +20,7 @@ class UpdateTaskRequest extends FormRequest
             'assigned_to' => ['sometimes', 'exists:users,id'],
             'status' => ['sometimes', Rule::in(['pending', 'in-progress', 'completed'])],
             'due_date' => ['sometimes', 'nullable', 'date', 'after_or_equal:today'],
+            'version'=>'required'
         ];
     }
 
